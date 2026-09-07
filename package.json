@@ -1,0 +1,69 @@
+{
+  "name": "n8n-nodes-przypominamy",
+  "version": "1.0.0",
+  "description": "Węzeł n8n dla API SMS przypominamy.com — wysyłka SMS i wiadomości głosowych, kontakty, grupy, czarna lista, raporty oraz trigger webhooków ze statusem doręczenia. Polska bramka SMS, REST, webhooki HMAC.",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "sms",
+    "sms api",
+    "bramka sms",
+    "api sms polska",
+    "przypominamy",
+    "sms polska",
+    "wysylka sms",
+    "otp sms",
+    "2fa sms"
+  ],
+  "homepage": "https://przypominamy.com/integracje/n8n",
+  "bugs": {
+    "email": "support@przypominamy.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pawelmamcarz/przypominamy-n8n.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Przypominamy.com",
+    "email": "support@przypominamy.com"
+  },
+  "main": "index.js",
+  "files": [
+    "dist",
+    "index.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.10"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc -p tsconfig.json && node scripts/copy-icons.mjs",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "eslint nodes credentials package.json",
+    "lintfix": "eslint nodes credentials package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint"
+  },
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/PrzypominamyApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/Przypominamy/Przypominamy.node.js",
+      "dist/nodes/PrzypominamyTrigger/PrzypominamyTrigger.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-n8n-nodes-base": "^1.16.7",
+    "n8n-workflow": "~1.82.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.9.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

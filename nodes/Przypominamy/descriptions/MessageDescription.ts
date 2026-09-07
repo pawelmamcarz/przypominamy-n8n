@@ -1,0 +1,275 @@
+import type { INodeProperties } from 'n8n-workflow';
+
+const show = (operation: string[]) => ({ show: { resource: ['message'], operation } });
+
+export const messageOperations: INodeProperties[] = [
+	{
+		displayName: 'Operacja',
+		name: 'operation',
+		type: 'options',
+		noDataExpression: true,
+		displayOptions: { show: { resource: ['message'] } },
+		options: [
+			{ name: 'Wyślij SMS', value: 'sendSms', action: 'Wyślij SMS', description: 'POST /v1/messages' },
+			{ name: 'Wyślij wiadomość głosową', value: 'sendVoice', action: 'Wyślij wiadomość głosową', description: 'POST /v1/voice (TTS)' },
+			{ name: 'Pobierz', value: 'get', action: 'Pobierz wiadomość', description: 'GET /v1/messages/{id}' },
+			{ name: 'Lista', value: 'list', action: 'Lista wiadomości', description: 'GET /v1/messages' },
+			{ name: 'Anuluj', value: 'cancel', action: 'Anuluj zaplanowaną wysyłkę', description: 'DELETE /v1/messages/{id}' },
+		],
+		default: 'sendSms',
+	},
+];
+
+const scheduleFields: INodeProperties[] = [
+	{
+		displayName: 'Nadawca (nadpis)',
+		name: 'from',
+		type: 'string',
+		default: '',
+		placeholder: 'PRZYPOMINAM',
+		description: 'Nazwa nadawcy z listy Konto → Nadpisy. Puste = domyślny nadpis konta.',
+	},
+	{
+		displayName: 'Wyślij o (send_at)',
+		name: 'sendAt',
+		type: 'dateTime',
+		default: '',
+		description: 'Zaplanowana wysyłka, maks. 90 dni w przód. Puste = od razu.',
+	},
+	{
+		displayName: 'Okno godzin (send_window)',
+		name: 'sendWindow',
+		type: 'string',
+		default: '',
+		placeholder: '08:00-20:00',
+		description: 'Czas polski, HH:MM-HH:MM. Poza oknem wysyłka jest przesuwana na najbliższy początek okna.',
+	},
+	{
+		displayName: 'Ważność do (expires_at)',
+		name: 'expiresAt',
+		type: 'dateTime',
+		default: '',
+		description: 'Od 15 minut do 72 godzin po czasie wysyłki. Po tym terminie wiadomość dostaje status expired.',
+	},
+	{
+		displayName: 'Referencja',
+		name: 'reference',
+		type: 'string',
+		default: '',
+		placeholder: 'wizyta-4711',
+		description: 'Własny identyfikator — wraca w rekordzie wiadomości i w webhookach, filtrowalny w liście',
+	},
+];
+
+export const messageFields: INodeProperties[] = [
+	// ── sendSms / sendVoice — wspólne ────────────────────────────────────
+	{
+		displayName: 'Odbiorca (to)',
+		name: 'to',
+		type: 'string',
+		required: true,
+		default: '',
+		placeholder: '+48600100200, +48600100201 lub group:VIP',
+		displayOptions: show(['sendSms', 'sendVoice']),
+		description:
+			'Numer w formacie +48…, kilka numerów po przecinku (do 500) albo grupa kontaktów jako group:Nazwa / group:gr_…. Numer bez prefiksu traktowany jest jako polski.',
+	},
+	{
+		displayName: 'Treść',
+		name: 'text',
+		type: 'string',
+		typeOptions: { rows: 3 },
+		default: '',
+		placeholder: 'Przypominamy o wizycie jutro o 10:00.',
+		displayOptions: show(['sendSms']),
+		description:
+			'Treść SMS. Placeholdery: {{imie}}, {{nazwisko}}, {{email}}, {{pole_wlasne}} (z kontaktów przy group:), {{opt_out}} (link wypisu), {{link:https://…}} (link śledzony). Zamiast treści możesz podać szablon w polach dodatkowych.',
+	},
+	{
+		displayName: 'Treść (TTS)',
+		name: 'text',
+		type: 'string',
+		typeOptions: { rows: 3 },
+		required: true,
+		default: '',
+		placeholder: 'Dzień dobry, przypominamy o wizycie jutro o dziesiątej.',
+		displayOptions: show(['sendVoice']),
+		description: 'Tekst czytany lektorem, do 600 znaków',
+	},
+	{
+		displayName: 'Lektor',
+		name: 'lector',
+		type: 'options',
+		options: [
+			{ name: 'Ewa', value: 'ewa' },
+			{ name: 'Jacek', value: 'jacek' },
+			{ name: 'Jan', value: 'jan' },
+			{ name: 'Maja', value: 'maja' },
+		],
+		default: 'ewa',
+		displayOptions: show(['sendVoice']),
+	},
+	{
+		displayName: 'Liczba prób połączenia',
+		name: 'tries',
+		type: 'number',
+		typeOptions: { minValue: 1, maxValue: 6 },
+		default: 1,
+		displayOptions: show(['sendVoice']),
+		description: 'Ile razy dzwonić, gdy odbiorca nie odbiera (1–6)',
+	},
+	{
+		displayName: 'Pola dodatkowe',
+		name: 'additionalFields',
+		type: 'collection',
+		placeholder: 'Dodaj pole',
+		default: {},
+		displayOptions: show(['sendSms']),
+		options: [
+			...scheduleFields,
+			{
+				displayName: 'SMS priorytetowy',
+				name: 'priority',
+				type: 'boolean',
+				default: false,
+				description: 'Osobna, szybsza kolejka u dostawcy (kody OTP, alerty). Cena ×2.',
+			},
+			{
+				displayName: 'ID szablonu (template_id)',
+				name: 'templateId',
+				type: 'string',
+				default: '',
+				placeholder: 'tpl_…',
+				description: 'Szablon typu SMS z panelu zamiast pola Treść. Placeholdery {{klucz}} uzupełnij w Parametrach szablonu.',
+			},
+			{
+				displayName: 'Parametry szablonu (params)',
+				name: 'params',
+				type: 'json',
+				default: '{}',
+				placeholder: '{ "kiedy": "jutro 10:00" }',
+				description: 'Obiekt JSON z wartościami dla {{klucz}} w szablonie',
+			},
+			{
+				displayName: 'Klucz idempotencji',
+				name: 'idempotencyKey',
+				type: 'string',
+				default: '',
+				description: 'Nagłówek Idempotency-Key — ponowne wykonanie z tym samym kluczem nie wyśle SMS-a drugi raz (do 128 znaków)',
+			},
+		],
+	},
+	{
+		displayName: 'Pola dodatkowe',
+		name: 'additionalFields',
+		type: 'collection',
+		placeholder: 'Dodaj pole',
+		default: {},
+		displayOptions: show(['sendVoice']),
+		options: [
+			...scheduleFields,
+			{
+				displayName: 'ID szablonu (template_id)',
+				name: 'templateId',
+				type: 'string',
+				default: '',
+				placeholder: 'tpl_…',
+				description: 'Szablon typu głosowego z panelu zamiast pola Treść',
+			},
+			{
+				displayName: 'Parametry szablonu (params)',
+				name: 'params',
+				type: 'json',
+				default: '{}',
+				description: 'Obiekt JSON z wartościami dla {{klucz}} w szablonie',
+			},
+			{
+				displayName: 'Klucz idempotencji',
+				name: 'idempotencyKey',
+				type: 'string',
+				default: '',
+				description: 'Nagłówek Idempotency-Key — ponowne wykonanie z tym samym kluczem nie wykona połączenia drugi raz',
+			},
+		],
+	},
+
+	// ── get / cancel ─────────────────────────────────────────────────────
+	{
+		displayName: 'ID wiadomości',
+		name: 'messageId',
+		type: 'string',
+		required: true,
+		default: '',
+		placeholder: 'msg_…',
+		displayOptions: show(['get', 'cancel']),
+	},
+
+	// ── list ─────────────────────────────────────────────────────────────
+	{
+		displayName: 'Limit',
+		name: 'limit',
+		type: 'number',
+		typeOptions: { minValue: 1 },
+		default: 50,
+		displayOptions: show(['list']),
+		description: 'Max number of results to return',
+	},
+	{
+		displayName: 'Filtry',
+		name: 'filters',
+		type: 'collection',
+		placeholder: 'Dodaj filtr',
+		default: {},
+		displayOptions: show(['list']),
+		options: [
+			{
+				displayName: 'Status',
+				name: 'status',
+				type: 'options',
+				options: [
+					{ name: 'Zaplanowana (scheduled)', value: 'scheduled' },
+					{ name: 'W kolejce (queued)', value: 'queued' },
+					{ name: 'Wysłana (sent)', value: 'sent' },
+					{ name: 'Doręczona (delivered)', value: 'delivered' },
+					{ name: 'Niedoręczona (undelivered)', value: 'undelivered' },
+					{ name: 'Błąd (failed)', value: 'failed' },
+					{ name: 'Wygasła (expired)', value: 'expired' },
+					{ name: 'Odrzucona (rejected)', value: 'rejected' },
+					{ name: 'Anulowana (cancelled)', value: 'cancelled' },
+				],
+				default: 'delivered',
+			},
+			{
+				displayName: 'Typ',
+				name: 'type',
+				type: 'options',
+				options: [
+					{ name: 'SMS', value: 'sms' },
+					{ name: 'MMS', value: 'mms' },
+					{ name: 'Głosowa (VMS)', value: 'vms' },
+				],
+				default: 'sms',
+			},
+			{
+				displayName: 'Odbiorca (to)',
+				name: 'to',
+				type: 'string',
+				default: '',
+				placeholder: '+48600100200',
+			},
+			{
+				displayName: 'Referencja',
+				name: 'reference',
+				type: 'string',
+				default: '',
+			},
+			{
+				displayName: 'Kursor',
+				name: 'cursor',
+				type: 'string',
+				default: '',
+				description: 'Wartość next_cursor z poprzedniej strony',
+			},
+		],
+	},
+];

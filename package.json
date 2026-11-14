@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-przypominamy",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Węzeł n8n dla API SMS przypominamy.com — wysyłka SMS i wiadomości głosowych, kontakty, grupy, czarna lista, raporty oraz trigger webhooków ze statusem doręczenia. Polska bramka SMS, REST, webhooki HMAC.",
   "keywords": [
     "n8n-community-node-package",

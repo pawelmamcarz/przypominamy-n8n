@@ -12,17 +12,19 @@ Pełna dokumentacja integracji: [przypominamy.com/integracje/n8n](https://przypo
 
 ## Instalacja
 
-**n8n Cloud / self-hosted (zalecane):** *Settings → Community Nodes → Install*, wpisz `n8n-nodes-przypominamy`, zaakceptuj i zainstaluj. Po chwili w wyszukiwarce węzłów pojawią się „Przypominamy.com SMS” i „Przypominamy.com Trigger”.
+**Self-hosted:** *Settings → Community Nodes → Install*, wpisz `n8n-nodes-przypominamy@1.1.0`, zaakceptuj i zainstaluj. Po chwili w wyszukiwarce węzłów pojawią się „Przypominamy.com SMS” i „Przypominamy.com Trigger”.
 
 **Ręcznie (Docker / npm):**
 
 ```bash
 cd ~/.n8n/nodes          # katalog węzłów społeczności (N8N_USER_FOLDER/nodes)
-npm install n8n-nodes-przypominamy
+npm install n8n-nodes-przypominamy@1.1.0
 # restart n8n
 ```
 
 Wymagania: n8n ≥ 1.0, Node.js ≥ 18.10.
+
+Pole *Cel wysyłki (purpose)* jest dostępne w wersji 1.1.0. W wersji 1.0.0 oraz w n8n Cloud możesz wysyłać SMS-y przez wbudowany [HTTP Request](https://przypominamy.com/integracje/n8n#konfiguracja) z `purpose` w treści JSON. Bramka wymaga tego pola dla kont objętych ochroną nowych kont.
 
 ## Dane dostępowe
 
@@ -46,7 +48,7 @@ Wymagania: n8n ≥ 1.0, Node.js ≥ 18.10.
 
 - *Odbiorca (to)*: numer `+48600100200`, kilka numerów po przecinku (do 500) albo grupa `group:VIP`. Przy `group:` działa personalizacja z książki kontaktów: `{{imie}}`, `{{nazwisko}}`, `{{email}}`, `{{pole_wlasne}}`.
 - *Treść*: tekst SMS. Placeholdery `{{opt_out}}` (link wypisu) i `{{link:https://…}}` (link śledzony, do 2 na wiadomość).
-- *Pola dodatkowe*: nadawca (`from`), zaplanowana wysyłka (`send_at`, do 90 dni), okno godzin (`send_window`, np. `08:00-20:00`), ważność (`expires_at`, 15 min – 72 h), referencja, SMS priorytetowy (`priority`, cena ×2), szablon (`template_id` + `params` JSON) zamiast treści, klucz idempotencji (`Idempotency-Key`).
+- *Pola dodatkowe*: cel wysyłki (`purpose`, od 5 do 200 znaków), nadawca (`from`), zaplanowana wysyłka (`send_at`, do 90 dni), okno godzin (`send_window`, np. `08:00-20:00`), ważność (`expires_at`, 15 min – 72 h), referencja, SMS priorytetowy (`priority`, cena ×2), szablon (`template_id` + `params` JSON) zamiast treści, klucz idempotencji (`Idempotency-Key`).
 
 Odpowiedź to rekord wiadomości (`id`, `status`, `parts`, `cost_grosze`, …) albo dla wielu odbiorców `{ count, accepted, total_cost_grosze, messages: [...] }`. Kwoty w groszach.
 
@@ -72,6 +74,7 @@ Schedule Trigger (18:00)
   → Przypominamy.com SMS: Wiadomość → Wyślij SMS
        to:        {{ $json.telefon }}
        text:      Dzień dobry {{ $json.imie }}, przypominamy o wizycie jutro o {{ $json.godzina }}. Odwołanie: tel. 22 000 00 00.
+       purpose:   przypomnienie o wizycie
        reference: wizyta-{{ $json.id }}
        from:      PRZYPOMINAM   (albo własny nadpis z panelu)
   → Google Sheets: Update row (kolumna sms_id ← {{ $json.id }}, status ← {{ $json.status }})
@@ -87,6 +90,7 @@ WooCommerce Trigger (order.created)
   → Przypominamy.com SMS: Wiadomość → Wyślij SMS
        to:        {{ $json.billing.phone }}
        text:      {{ $json.billing.first_name }}, dziękujemy za zamówienie #{{ $json.id }} na {{ $json.total }} zł. Status sprawdzisz: {{link:{{ $json.order_url }}}}
+       purpose:   potwierdzenie zamówienia
        reference: order-{{ $json.id }}
        priority:  true   (opcjonalnie — potwierdzenia dochodzą szybciej)
 ```
@@ -123,7 +127,7 @@ Zgłoszenia błędów: [support@przypominamy.com](mailto:support@przypominamy.co
 
 **n8n community node for [przypominamy.com](https://przypominamy.com/api)** — a Polish SMS gateway with a simple REST API (SMS, voice/TTS, contacts, groups, blacklist, reports, HMAC-signed webhooks).
 
-- **Install:** n8n *Settings → Community Nodes → Install* → `n8n-nodes-przypominamy`.
+- **Install (self-hosted):** n8n *Settings → Community Nodes → Install* → `n8n-nodes-przypominamy@1.1.0`. To send from n8n Cloud or version 1.0.0, use the built-in [HTTP Request node](https://przypominamy.com/integracje/n8n#konfiguracja) with `purpose` in the JSON body. The gateway requires this field for accounts covered by its new-account safeguards.
 - **Credentials:** create an API key at [app.przypominamy.com/keys](https://app.przypominamy.com/keys) (`pk_live_…`; `pk_test_…` keys only send to verified numbers). Add it as *Przypominamy.com API*; the test button calls `GET /v1/account`. For the trigger, paste the node's production webhook URL at [app.przypominamy.com/webhook](https://app.przypominamy.com/webhook) and copy the shown `whsec_…` secret into the credential.
 - **Action node** *Przypominamy.com SMS*: Message (send SMS, send voice, get, list, cancel), Contact (upsert, list, delete), Group (list, create, add contacts), Blacklist (add, remove, list), Account (get, senders, report, HLR lookup), Template (list). Recipients accept a single number, a comma-separated list (up to 500) or `group:Name`. API errors surface as `NodeApiError` with the error code, offending parameter and `request_id`; *Continue on Fail* is supported.
 - **Trigger node** *Przypominamy.com Trigger*: receives `message.sent|delivered|undelivered|failed|expired|received` and `link.clicked` webhooks, verifies `X-Przypominamy-Signature` (`t=<unix>,v1=<hex>`, `v1 = HMAC-SHA256(secret, "<t>.<raw body>")`, 5-minute window) and emits the JSON payload.

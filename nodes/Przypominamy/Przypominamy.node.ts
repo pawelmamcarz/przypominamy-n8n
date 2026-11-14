@@ -141,6 +141,7 @@ async function executeMessage(this: IExecuteFunctions, operation: string, i: num
 		if (!body.text && !body.template_id) {
 			throw new NodeOperationError(this.getNode(), 'Podaj treść wiadomości albo ID szablonu', { itemIndex: i });
 		}
+		if (add.purpose) body.purpose = String(add.purpose).trim();
 		if (add.from) body.from = String(add.from).trim();
 		const sendAt = toIso(add.sendAt);
 		if (sendAt) body.send_at = sendAt;

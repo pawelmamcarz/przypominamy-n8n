@@ -34,7 +34,7 @@ export async function przypominamyRequest(
 	const options: IHttpRequestOptions = {
 		method,
 		url: `${baseUrl}${endpoint}`,
-		headers: { Accept: 'application/json', 'User-Agent': 'n8n-nodes-przypominamy/1.0.0', ...(extraHeaders ?? {}) },
+		headers: { Accept: 'application/json', 'User-Agent': 'n8n-nodes-przypominamy/1.1.0', ...(extraHeaders ?? {}) },
 		json: true,
 		returnFullResponse: true,
 		ignoreHttpStatusErrors: true,

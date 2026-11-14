@@ -22,6 +22,14 @@ export const messageOperations: INodeProperties[] = [
 
 const scheduleFields: INodeProperties[] = [
 	{
+		displayName: 'Cel wysyłki (purpose)',
+		name: 'purpose',
+		type: 'string',
+		default: '',
+		placeholder: 'przypomnienie o wizycie',
+		description: 'Krótki cel wysyłki, od 5 do 200 znaków. Wymagany dla nowych kont objętych ochroną przed nadużyciami.',
+	},
+	{
 		displayName: 'Nadawca (nadpis)',
 		name: 'from',
 		type: 'string',
